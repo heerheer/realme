@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HARMOG'S REALME | 也许是一只小老鼠</title>
+    <meta name="description" content="HARMOG'S REALME | 也许是一只小老鼠">
+    <style>
+        /* --- CSS Reset & Variables --- */
+        :root {
+            --bg-color: #050505;
+            --card-bg: rgba(20, 20, 20, 0.85); /* 稍微加深不透明度以遮挡下层卡片 */
+            --text-main: #ffffff;
+            --text-sub: #a1a1aa;
+            --accent-glow: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+            --border-beam-color: #ffffff;
+            --card-width: 340px;
+            --card-height: 520px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- Background Elements --- */
+        .bg-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: 0;
+            pointer-events: none;
+            mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+            -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            z-index: 0;
+            animation: float 20s infinite ease-in-out alternate;
+        }
+        .orb-1 { width: 400px; height: 400px; background: radial-gradient(circle, #4c1d95 0%, transparent 70%); top: 10%; left: 20%; animation-delay: 0s; }
+        .orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, #0ea5e9 0%, transparent 70%); bottom: 10%; right: 10%; animation-delay: -5s; }
+        .orb-3 { width: 300px; height: 300px; background: radial-gradient(circle, #14b8a6 0%, transparent 70%); bottom: 30%; left: 10%; animation-delay: -10s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0, 0) scale(1); }
+        }
+
+        .noise-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.05;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* --- Deck Container --- */
+        .deck-container {
+            position: relative;
+            width: var(--card-width);
+            height: var(--card-height);
+            z-index: 10;
+            perspective: 1200px; /* Stronger perspective for depth */
+        }
+
+        /* --- Common Card Styles --- */
+        .card {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--card-bg);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            /* 关键动画过渡 */
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.6s ease, filter 0.6s ease, box-shadow 0.6s ease;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            /* Hide backface for clean rotations */
+            backface-visibility: hidden;
+            overflow: hidden; 
+            cursor: default;
+        }
+
+        /* --- Card States (Positioning) --- */
+        
+        /* 1. Center (Active) */
+        .card[data-pos="center"] {
+            z-index: 10;
+            transform: translateX(0) scale(1) translateZ(0);
+            opacity: 1;
+            filter: brightness(1);
+            cursor: auto;
+        }
+
+        /* 2. Left (Stack A) */
+        .card[data-pos="left"] {
+            z-index: 5;
+            transform: translateX(-140px) scale(0.85) rotate(-12deg) translateZ(-50px);
+            opacity: 0.7;
+            filter: brightness(0.6) blur(1px);
+            cursor: pointer;
+        }
+
+        /* 3. Right (Stack C) */
+        .card[data-pos="right"] {
+            z-index: 5;
+            transform: translateX(140px) scale(0.85) rotate(12deg) translateZ(-50px);
+            opacity: 0.7;
+            filter: brightness(0.6) blur(1px);
+            cursor: pointer;
+        }
+
+        /* --- Interaction Tweaks --- */
+        /* Disable interactions on side card content to prevent accidental link clicks */
+        .card:not([data-pos="center"]) .links,
+        .card:not([data-pos="center"]) .avatar {
+            pointer-events: none;
+        }
+
+        /* --- Hover Effects (Desktop Only) --- */
+        @media (hover: hover) and (min-width: 768px) {
+            .card[data-pos="left"]:hover {
+                transform: translateX(-160px) scale(0.9) rotate(-15deg) translateZ(0);
+                filter: brightness(0.9);
+                z-index: 8; /* Bring closer to top but not above center */
+            }
+            .card[data-pos="right"]:hover {
+                transform: translateX(160px) scale(0.9) rotate(15deg) translateZ(0);
+                filter: brightness(0.9);
+                z-index: 8;
+            }
+        }
+
+        /* --- Streamer Effect (Only on Center) --- */
+        .card[data-pos="center"]::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                from 0deg,
+                transparent 0%, 
+                transparent 60%, 
+                var(--border-beam-color) 80%, 
+                transparent 100%
+            );
+            transform-origin: center;
+            animation: rotate 4s linear infinite;
+            z-index: -2;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Inner layer for opaque background on Center card */
+        .card[data-pos="center"]::after {
+            content: "";
+            position: absolute;
+            inset: 1px;
+            background: #0a0a0a;
+            border-radius: 23px;
+            z-index: -1;
+        }
+
+        /* Disable streamer on side cards to reduce visual noise */
+        .card:not([data-pos="center"])::before,
+        .card:not([data-pos="center"])::after {
+            display: none;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- Content Styles --- */
+        .avatar {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #333, #555);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            margin-bottom: 8px;
+            background: linear-gradient(to right, #fff, #ccc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .title {
+            font-size: 0.875rem;
+            color: var(--text-sub);
+            margin-bottom: 24px;
+            font-weight: 400;
+        }
+
+        .divider {
+            width: 40px;
+            height: 2px;
+            background: rgba(255,255,255,0.1);
+            margin-bottom: 24px;
+        }
+
+        .links {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .link-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-sub);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .link-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: var(--text-main);
+        }
+        
+        .link-item.skill-item {
+            justify-content: flex-start;
+            gap: 15px;
+            pointer-events: none; /* Skills are just display */
+        }
+
+        .link-left { display: flex; align-items: center; gap: 12px; }
+        .icon { width: 20px; height: 20px; stroke-width: 2; }
+
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .tag {
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #ddd;
+        }
+
+        .project-desc {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 4px;
+            text-align: left;
+        }
+
+        /* --- Toast --- */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        
+        /* --- Mobile Responsive Tweaks --- */
+        @media (max-width: 480px) {
+            :root {
+                --card-width: 85vw;
+                --card-height: 520px;
+            }
+            /* Reduce translation distance on mobile so cards stay on screen */
+            .card[data-pos="left"] { transform: translateX(-40px) scale(0.85) rotate(-6deg) translateZ(-50px); }
+            .card[data-pos="right"] { transform: translateX(40px) scale(0.85) rotate(6deg) translateZ(-50px); }
+            
+            .orb-3 { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Elements -->
+    <div class="bg-grid"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="noise-overlay"></div>
+
+    <!-- Main Deck Container -->
+    <div class="deck-container" id="deck">
+        
+        <!-- CARD A: Skills / About (Left by default) -->
+        <div class="card" data-pos="left">
+            <div class="avatar" style="width: 72px; height: 72px;">
+                <img src="https://gravatar.com/avatar/854d1500ce7f2e42734af8a991329bd9d5f797c10f2d6c3f1b8834e1da07c72a?v=1763537347000&size=72" alt="Icon">
+            </div>
+            <h2 class="name" style="font-size: 1.2rem;">技术栈</h2>
+            <p class="title">My Toolkit</p>
+            <div class="divider"></div>
+            
+            <div class="links">
+                <div class="link-item skill-item">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#61DAFB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg>
+                    <span>Vue (Use)</span>
+                </div>
+                <div class="link-item skill-item">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#F7DF1E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20M2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                    <span>Typescript (Use)</span>
+                </div>
+                <div class="link-item skill-item">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 7.8l-7.7 7.9-2.7-2.8"/><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg>
+                    <span>Tailwind CSS (Use)</span>
+                </div>
+                
+                <div class="divider" style="margin: 10px 0; width: 20px;"></div>
+                
+                <div class="tags-container">
+                    <span class="tag">C#</span>
+                    <span class="tag">Node.js</span>
+                    <span class="tag">Git删库员</span>
+                    <span class="tag">Python主理人</span>
+                    <span class="tag">AI调教师</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD B: Profile (Center by default) -->
+        <div class="card" data-pos="center" id="main-card">
+            <!-- Profile Image -->
+            <div class="avatar">
+                <img src="https://gravatar.com/avatar/854d1500ce7f2e42734af8a991329bd9d5f797c10f2d6c3f1b8834e1da07c72a?v=1763537347000&size=256" alt="Avatar">
+            </div>
+
+            <!-- Info -->
+            <h1 class="name">Alex Chen</h1>
+            <p class="title"> 开发者 / INFP / 小福星</p>
+            
+            <div class="divider"></div>
+
+            <!-- Links -->
+            <div class="links">
+                <!-- GitHub -->
+                <a href="https://github.com" target="_blank" class="link-item">
+                    <div class="link-left">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+                        <span>GitHub</span>
+                    </div>
+                </a>
+
+                <!-- Blog -->
+                <a href="#" target="_blank" class="link-item">
+                    <div class="link-left">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                        <span>个人博客</span>
+                    </div>
+                </a>
+
+                <!-- Email (Special Action) -->
+                <a href="#" class="link-item" onclick="copyEmail(event, 'hi@alexchen.dev')">
+                    <div class="link-left">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <span>hi@alexchen.dev</span>
+                    </div>
+                </a>
+            </div>
+            
+            <p style="margin-top:auto; font-size: 0.75rem; color: #555;">&larr; Swipe or Click Sides &rarr;</p>
+        </div>
+
+        <!-- CARD C: Projects (Right by default) -->
+        <div class="card" data-pos="right">
+            <div class="avatar" style="width: 72px; height: 72px;">
+                <img src="https://api.dicebear.com/9.x/shapes/svg?seed=Work" alt="Icon">
+            </div>
+            <h2 class="name" style="font-size: 1.2rem;">个人项目</h2>
+            <p class="title">Selected Works</p>
+            <div class="divider"></div>
+            
+            <div class="links">
+                <a href="#" class="link-item" style="display:block;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:600; color:#fff;">Hippodamia | 赛马Ami</span>
+                        <svg class="icon" style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </div>
+                    <div class="project-desc">依托于群聊的文字赛马游戏! 复活中...</div>
+                </a>
+                
+                <a href="#" class="link-item" style="display:block;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:600; color:#fff;">AppliedWebhook | Homo Http Router</span>
+                        <svg class="icon" style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </div>
+                    <div class="project-desc">在任何地方访问你的ME网络 👉赛博监工</div>
+                </a>
+                
+                <a href="#" class="link-item" style="display:block;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:600; color:#fff;">?EM?-Su??????</span>
+                        <svg class="icon" style="width:16px; height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </div>
+                    <div class="project-desc">这是什么....</div>
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast Message -->
+    <div id="toast" class="toast">邮箱已复制到剪贴板</div>
+
+    <script>
+        // --- Card Data & State ---
+        const deck = document.getElementById('deck');
+        // Convert NodeList to Array for easier manipulation
+        let cards = Array.from(document.querySelectorAll('.card'));
+        
+        function updateCardPositions() {
+            // 1. Update Position Attributes
+            cards[0].setAttribute('data-pos', 'left');
+            cards[1].setAttribute('data-pos', 'center');
+            cards[2].setAttribute('data-pos', 'right');
+
+            // 2. Dynamic Event Binding (修复：根据当前位置动态绑定点击事件)
+            // Left Card -> Click to rotate right (bring to center)
+            cards[0].onclick = () => rotateRight();
+            
+            // Right Card -> Click to rotate left (bring to center)
+            cards[2].onclick = () => rotateLeft();
+            
+            // Center Card -> No rotation, allow internal interactions
+            cards[1].onclick = null;
+
+            // 3. Reset & Re-apply Tilt (Only for Center)
+            cards.forEach(card => {
+                card.onmousemove = null;
+                card.onmouseleave = null;
+                card.style.transform = ''; 
+            });
+            addTiltEffect(cards[1]);
+        }
+
+        // --- Rotation Logic ---
+        function rotateLeft() {
+            // [A, B, C] -> [B, C, A] (Right card comes to center)
+            cards.push(cards.shift());
+            updateCardPositions();
+        }
+
+        function rotateRight() {
+            // [A, B, C] -> [C, A, B] (Left card comes to center)
+            cards.unshift(cards.pop());
+            updateCardPositions();
+        }
+
+        // --- Touch / Swipe Logic ---
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const minSwipeDistance = 50;
+
+        deck.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        deck.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, {passive: true});
+
+        function handleSwipe() {
+            const distance = touchEndX - touchStartX;
+            
+            if (Math.abs(distance) > minSwipeDistance) {
+                if (distance > 0) {
+                    // Swipe Right -> Show Left Card (Bring Left to Center)
+                    rotateRight(); 
+                } else {
+                    // Swipe Left -> Show Right Card (Bring Right to Center)
+                    rotateLeft();
+                }
+            }
+        }
+
+        // --- 3D Tilt Effect (Only for Active Card) ---
+        function addTiltEffect(card) {
+            card.onmousemove = (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const xPct = x / rect.width;
+                const yPct = y / rect.height;
+
+                const xRot = (0.5 - yPct) * 10; 
+                const yRot = (xPct - 0.5) * 10;
+
+                card.style.transform = `translateX(0) scale(1) translateZ(0) perspective(1000px) rotateX(${xRot}deg) rotateY(${yRot}deg)`;
+            };
+
+            card.onmouseleave = () => {
+                card.style.transform = `translateX(0) scale(1) translateZ(0) perspective(1000px) rotateX(0deg) rotateY(0deg)`;
+            };
+        }
+
+        // --- Copy to Clipboard Logic ---
+        window.copyEmail = function(e, email) {
+            e.preventDefault(); 
+            e.stopPropagation(); // Prevent card click trigger
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = email;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) showToast();
+            } catch (err) {
+                console.error('Fallback copy error', err);
+            }
+            
+            document.body.removeChild(textarea);
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        // Initialize proper bindings on load
+        updateCardPositions();
+    </script>
+</body>
+</html>
